@@ -58,12 +58,14 @@ app.add_middleware(SessionMiddleware, secret_key=secret_key)
 
 @app.get("/auth0/callback")
 async def auth0_callback(request: Request):
+    logger.info(f'auth0_callback')
+    code = request.query_params.get("code")
     result = await auth0_callback_request(request)
     redirect_uri = request.session.get("redirect_uri")
 
     # Clear the redirect_uri from the session
     request.session.pop("redirect_uri", None)
-    query_string = urlencode(result)
+    query_string = urlencode({**result, "code": code})
     full_redirect_uri = f"{redirect_uri}?{query_string}"
     logger.info(f'full redirect URI: {full_redirect_uri}')
     return RedirectResponse(full_redirect_uri)

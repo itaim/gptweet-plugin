@@ -11,7 +11,7 @@
     "scope": "plugin:user",
     "authorization_content_type": "application/x-www-form-urlencoded",
     "verification_tokens": {
-      "openai":"18e6debc20994d1fa3ed8e65ecf3cfab"
+      "openai":"33aa1ad86234427a92475325730f8782"
     }
   },
   "api": {

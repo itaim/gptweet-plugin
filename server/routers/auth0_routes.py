@@ -57,7 +57,6 @@ async def auth0_login_request(request: Request):
 
 
 async def auth0_callback_request(request: Request, users: UsersRepository = Depends(get_users_repository)):
-    logger.info(f'auth0_callback')
     auth0_client = auth0.create_client('auth0')
     token = await auth0_client.authorize_access_token(request)
     logger.info(f'auth0 user_info {pprint.pformat(token)}')
