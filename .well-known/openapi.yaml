@@ -1,0 +1,172 @@
+openapi: 3.0.2
+info:
+  title: SocialMediaAssistant Plugin API
+  description: A plugin that enables users to interact with Twitter functionalities and perform Google searches through ChatGPT. Features include creating tweets, following users, getting the latest tweets from the feed, searching for tweets, and performing Google searches.
+  version: 1.0.0
+servers:
+  - url: https://social.rolebotics.com
+paths:
+  /twitter/api:
+    post:
+      summary: Make Twitter API requests
+      description: This endpoint allows ChatGPT to make requests to the Twitter API v2 endpoints on behalf of the authenticated user.
+        Provide the HTTP method, the Twitter API url with parameters and the request payload. Use :id for the authenticated user id where required.
+      operationId: twitter_api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TwitterAPIRequest"
+            examples:
+              createTweet:
+                summary: Create a tweet
+                value:
+                  method: "POST"
+                  url: "https://api.twitter.com/2/tweets"
+                  body: "{\"text\": \"This is a new tweet from ChatGPT Twitter Plugin!\"}"
+              ReplyToTweet:
+                summary: Create a tweet in reply to a tweet
+                value:
+                  method: "POST"
+                  url: "https://api.twitter.com/2/tweets"
+                  body: "{\"text\": \"This is reply to tweet from ChatGPT Twitter Plugin\", \"reply\": {\"in_reply_to_tweet_id\":\"1645301668702040066\"}}"
+              getTweet:
+                summary: Get a single tweet by ID
+                value:
+                  method: "GET"
+                  url: "https://api.twitter.com/2/tweets/:tweet_id?tweet.fields=author_id,created_at,public_metrics,text"
+              searchTweets:
+                summary: Search for tweets containing a specific keyword
+                value:
+                  method: "GET"
+                  url: "https://api.twitter.com/2/tweets/search/recent?query=example&tweet.fields=author_id,created_at,public_metrics,text"
+              getFollowers:
+                summary: Get a list of the user's followers
+                value:
+                  method: "GET"
+                  "url": "https://api.twitter.com/2/users/:user_id/followers?max_results=10&user.fields=created_at,description,entities,id,location,name,profile_image_url,protected,public_metrics,url,username,verified"
+              getUserProfile:
+                summary: Get a user's profile by user ID
+                value:
+                  method: "GET"
+                  "url": "https://api.twitter.com/2/users/:user_id?user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,public_metrics,url,username,verified,withheld"
+              followUser:
+                summary: Follow a user by user ID
+                value:
+                  method: "POST"
+                  url: "https://api.twitter.com/2/users/:id/following"
+                  body: "{\"target_user_id\": \"750748700\"}"
+              homeTimeline:
+                summary: Get user home timeline tweets
+                value:
+                  method: "GET"
+                  url: "https://api.twitter.com/2/users/:id/timelines/reverse_chronological"
+        required: true
+      responses:
+        '200':
+          description: The Twitter API response
+          content:
+            application/json:
+              schema:
+                type: object
+                description: The JSON object representing the Twitter API response
+  /google/api:
+    post:
+      summary: Perform Google search
+      description: This endpoint allows ChatGPT to perform google searches and get sources with summaries or the original texts
+      operationId: google_search
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+            examples:
+              lookupTwitterDocumentation:
+                summary: Lookup twitter V2 API documentation
+                value:
+                  query: "how to use twitter api v2 to follow a user"
+                  sources: 1
+                  summarize: false
+                  source_tokens: 2000
+              searchAndSummarize:
+                summary: Search and summarize a query
+                value:
+                  query: "anticipated sci fi movies 2023"
+                  sources: 3
+                  summarize: true
+                  source_tokens: 500
+      responses:
+        '200':
+          description: Search response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+
+components:
+  schemas:
+    TwitterAPIRequest:
+      description: twitter V2 API request
+      type: object
+      properties:
+        method:
+          type: string
+          description: The HTTP method to use for the request (GET, POST, etc.)
+          enum: [ GET, POST, DELETE, PUT ]
+        url:
+          type: string
+          description: The Twitter API url, including parameters. Use :id for the authenticated user id where required.
+        body:
+          type: string
+          description: The JSON payload to send with the request as a string
+          nullable: true
+      required:
+        - method
+        - url
+    SearchRequest:
+      description: Google search request.
+      type: object
+      properties:
+        query:
+          type: string
+          description: google search query
+        sources:
+          type: integer
+          description: how many sources to retrieve
+        summarize:
+          type: boolean
+          description: whether to summarize the source or get the original text. summaries are provided by ChatGPT-3.5
+          default: true
+        source_tokens:
+          type: integer
+          description: Summary or original text tokens to be retieved for each source
+          default: 600
+    SearchResult:
+      title: SearchResult
+      type: object
+      properties:
+        query:
+          title: The Query
+          type: string
+        answer:
+          type: string
+          description: 'summary based on a source and query or the source original text'
+        source:
+          type: string
+          description: 'source url'
+    SearchResponse:
+      title: SearchResponse
+      type: object
+      items:
+        $ref: "#/components/schemas/SearchResult"
+
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: 'https://dev-tuuwr1anluaql1ho.us.auth0.com/authorize'
+          tokenUrl: 'https://dev-tuuwr1anluaql1ho.us.auth0.com/oauth/token'
+          scopes:
+            openid: 'OpenID Connect authentication'
+            profile: 'User profile information'
