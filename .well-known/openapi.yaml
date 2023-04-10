@@ -165,8 +165,8 @@ components:
       type: oauth2
       flows:
         authorizationCode:
-          authorizationUrl: 'https://dev-tuuwr1anluaql1ho.us.auth0.com/authorize'
-          tokenUrl: 'https://dev-tuuwr1anluaql1ho.us.auth0.com/oauth/token'
+          authorizationUrl: 'https://auth.rolebotics.com/authorize'
+          tokenUrl: 'https://auth.rolebotics.com/oauth/token'
           scopes:
             openid: 'OpenID Connect authentication'
             profile: 'User profile information'
