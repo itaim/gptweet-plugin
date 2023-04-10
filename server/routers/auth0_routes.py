@@ -48,6 +48,8 @@ oauth2_scheme = OAuth2AuthorizationCodeBearer(
 
 
 async def auth0_login_request(request: Request):
+    # Save the redirect_uri in the user's session
+    request.session["redirect_uri"] = request.query_params.get("redirect_uri")
     redirect_uri = f"{request.url_for('auth0_callback')}"
     logger.info(f'Redirect uri {redirect_uri}')
     auth0_client = auth0.create_client('auth0')
@@ -71,12 +73,13 @@ async def auth0_callback_request(request: Request, users: UsersRepository = Depe
     except Exception as e:
         logger.error(e)
 
-    return JSONResponse({
+    result = {
         "access_token": token["access_token"],
         "token_type": "Bearer",
         "expires_in": token.get("expires_in", 36000),
         "scope": "openid profile"
-    })
+    }
+    return result
 
 
 def get_twitter_credentials(auth0_management_api_token, user_id) -> Dict[str, Any]:

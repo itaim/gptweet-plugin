@@ -6,12 +6,12 @@ load_dotenv()
 import pinecone
 from fastapi.staticfiles import StaticFiles
 from base64 import b64encode
-
+from urllib.parse import urlencode
 import markdown2
 # temp remove
 import uvicorn
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 
 # temp remove
@@ -58,7 +58,15 @@ app.add_middleware(SessionMiddleware, secret_key=secret_key)
 
 @app.get("/auth0/callback")
 async def auth0_callback(request: Request):
-    return await auth0_callback_request(request)
+    result = await auth0_callback_request(request)
+    redirect_uri = request.session.get("redirect_uri")
+
+    # Clear the redirect_uri from the session
+    request.session.pop("redirect_uri", None)
+    query_string = urlencode(result)
+    full_redirect_uri = f"{redirect_uri}?{query_string}"
+    logger.info(f'full redirect URI: {full_redirect_uri}')
+    return RedirectResponse(full_redirect_uri)
 
 
 @app.get("/auth0/login")
