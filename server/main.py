@@ -11,22 +11,22 @@ import markdown2
 # temp remove
 import uvicorn
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
-
+from fastapi.middleware.cors import CORSMiddleware
 # temp remove
 from fastapi import Request
 from loguru import logger
-from server.routers.twitter_routes import tweeter_api_request
+from server.routers.twitter_utils import tweeter_api_request
 from server.datastore.users_repository import get_users_repository
 import os
 
 from server.models.base import SearchResponse, SearchRequest
 from fastapi import Depends, Body
-from server.routers.google_routes import google_search
+from server.routers.google_utils import google_search
 from server.models.base import TwitterAPIRequest
-from server.routers.auth0_routes import validate_token
-from server.routers.auth0_routes import auth0_callback_request, auth0_login_request
+from server.routers.auth0_utils import validate_token, no_auth_user
+from server.routers.auth0_utils import auth0_callback_request, auth0_login_request
 
 # 0. Implement Google search endpoint
 # 1. test locally
@@ -35,13 +35,26 @@ from server.routers.auth0_routes import auth0_callback_request, auth0_login_requ
 # 4. openapi error response
 # 5. Automated social media agent: goal, topics, personality (imitate my style), tweets and replies rate
 
+origins = [
+    "http://localhost",
+    "http://localhost:8000",
+    "https://social.rolebotics.com",
+    "http://social.rolebotics.com",
+    "https://chat.openai.com"
+]
 app = FastAPI()
 app.mount("/.well-known", StaticFiles(directory=find_relative_path(".well-known")), name="static")
 # app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
 secret_key = b64encode(os.urandom(16)).decode('utf-8')
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.add_middleware(SessionMiddleware, secret_key=secret_key)
-
 
 # Create a sub-application, in order to access just the query endpoint in an OpenAPI schema, found at http://0.0.0.0:8000/sub/openapi.json when the app is running locally
 # sub_app = FastAPI(
@@ -55,6 +68,30 @@ app.add_middleware(SessionMiddleware, secret_key=secret_key)
 # app.mount("/", auth_router)
 # app.mount("/", twitter_router)
 # app.mount("/", search_router)
+
+app.mount("/.well-known", StaticFiles(directory=".well-known"), name="static")
+
+
+# Create a sub-application, in order to access just the query endpoint in an OpenAPI schema, found at http://0.0.0.0:8000/sub/openapi.json when the app is running locally
+# sub_app = FastAPI(
+#     title="SocialMediaAssistant",
+#     description="Social Media Assistant: Tweet, follow users, get updates, search Twitter, and use Google via ChatGPT.",
+#     version="1.0.0",
+#     servers=[{"url": "https://social.rolebotics.com"}]
+# )
+
+# sub_app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=origins,
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+# sub_app.add_middleware(SessionMiddleware, secret_key=secret_key)
+#
+
+# app.mount("/sub", sub_app)
+
 
 @app.get("/auth0/callback")
 async def auth0_callback(request: Request):
@@ -81,9 +118,20 @@ async def auth0_login(request: Request):
 )
 async def tweeter_api(
         request: TwitterAPIRequest = Body(...),
-        user=Depends(validate_token)
+        user=Depends(no_auth_user)
 ):
-    return await tweeter_api_request(request, user)
+    content = await tweeter_api_request(request, user)
+    return JSONResponse(content=content)
+
+
+# @sub_app.post(
+#     "/twitter/api"
+# )
+# async def tweeter_api(
+#         request: TwitterAPIRequest = Body(...),
+#         user=Depends(validate_token)
+# ):
+#     return await tweeter_api_request(request, user)
 
 
 @app.post(
@@ -95,6 +143,17 @@ async def google_api(
         user=Depends(validate_token)
 ):
     return await google_search(request)
+
+
+# @sub_app.post(
+#     "/google/api",
+#     response_model=SearchResponse
+# )
+# async def google_api(
+#         request: SearchRequest = Body(...),
+#         user=Depends(validate_token)
+# ):
+#     return await google_search(request)
 
 
 @app.get("/legal-info", response_class=HTMLResponse)
@@ -118,6 +177,25 @@ async def index():
     return HTMLResponse(content=html_content, status_code=200)
 
 
+# @app.get("/ai-plugin.json", response_class=HTMLResponse)
+# # @sub_app.get("/home", response_class=HTMLResponse)
+# async def plugin_json():
+#     logger.info(f'ai-plugin {os.getcwd()}')
+#     with open(".well-known/ai-plugin.json", "r") as file:
+#         content = json.load(file)
+#
+#     return JSONResponse(content=content, status_code=200)
+#
+# @app.get("/openapi.yaml", response_class=HTMLResponse)
+# # @sub_app.get("/home", response_class=HTMLResponse)
+# async def openapi_yaml():
+#     logger.info(f'openapi yaml {os.getcwd()}')
+#     import yaml
+#
+#     with open(".well-known/openapi.yaml", "r") as f:
+#         content = yaml.safe_load(f)
+#
+#     return JSONResponse(content=content, status_code=200)
 @app.on_event("startup")
 async def startup():
     logger.info(f'Startup')
@@ -126,8 +204,7 @@ async def startup():
     assert api_key is not None
     assert environment is not None
     pinecone.init(api_key=api_key, environment=environment)
-    global users_repository
-    users_repository = await get_users_repository()
+    get_users_repository()
     logger.info(f'Startup complete')
 
 

@@ -1,14 +1,18 @@
 import datetime
+import http.client
+import json
 import os
 import pprint
+import time
+from functools import lru_cache
 from typing import Dict, Any
+from urllib.parse import urlencode
 
 # temp remove
 from auth0.management import Users
 from authlib.integrations.starlette_client import OAuth
 from fastapi import Depends, HTTPException
 from fastapi import Request
-from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2AuthorizationCodeBearer
 from loguru import logger
 
@@ -21,7 +25,10 @@ auth0_client_id = os.environ.get("AUTH0_CLIENT_ID")
 auth0_client_secret = os.environ.get("AUTH0_CLIENT_SECRET")
 # dev-tuuwr1anluaql1ho.us.auth0.com
 auth0_domain = os.environ.get("AUTH0_DOMAIN")
-auth0_management_api_token = os.environ['AUTH0_MANAGEMENT_API_TOKEN']
+
+auth0_management_client_id = os.environ.get("AUTH0_MANAGEMENT_CLIENT_ID")
+auth0_management_client_secret = os.environ.get("AUTH0_MANAGEMENT_CLIENT_SECRET")
+auth0_management_domain = os.environ['AUTH0_MANAGEMENT_DOMAIN']
 logger.info(f'Auth0 domain: {auth0_domain}')
 auth0 = OAuth()
 auth0.register(
@@ -56,7 +63,33 @@ async def auth0_login_request(request: Request):
     return await auth0_client.authorize_redirect(request, redirect_uri)
 
 
-async def auth0_callback_request(request: Request, users: UsersRepository = Depends(get_users_repository)):
+def get_ttl_hash(seconds=3600 * 23):
+    return round(time.time() / seconds)
+
+
+@lru_cache()
+def get_auth0_management_api_token(ttl_hash: int = None) -> str:
+    conn = http.client.HTTPSConnection(auth0_management_domain)
+    payload = urlencode({
+        'grant_type': 'client_credentials',
+        'client_id': auth0_management_client_id,
+        'client_secret': auth0_management_client_secret,
+        'audience': f'https://{auth0_management_domain}/api/v2/'
+    })
+    # grant_type=client_credentials&client_id=xxx&client_secret=xxx&audience=https://dev-tuuwr1anluaql1ho.us.auth0.com/api/v2/
+    headers = {'content-type': "application/x-www-form-urlencoded"}
+    conn.request("POST", "/oauth/token", payload, headers)
+
+    res = conn.getresponse()
+    data = res.read()
+    response_data = json.loads(data.decode("utf-8"))
+    logger.debug(f'auth0_management_api_token {data}')
+    return response_data["access_token"]
+
+
+# ,
+#                                  management_token: str = Depends(get_auth0_management_api_token)
+async def auth0_callback_request(request: Request):
     auth0_client = auth0.create_client('auth0')
     token = await auth0_client.authorize_access_token(request)
     logger.info(f'auth0 user_info {pprint.pformat(token)}')
@@ -66,11 +99,13 @@ async def auth0_callback_request(request: Request, users: UsersRepository = Depe
         access_token = AccessToken(access_token=token['access_token'], expiry_date=expiry_date)
         userinfo_ = token['userinfo']
         twitter_id = userinfo_['sub'].split('|')[1]
-        auth0_user = get_twitter_credentials(auth0_management_api_token, twitter_id)
+        # , management_token
+        auth0_user = await get_twitter_credentials(twitter_id)
+        users: UsersRepository = get_users_repository()
         users.upsert_user(access_token=access_token, refresh_token='', user_id=twitter_id,
                           userinfo=auth0_user)
     except Exception as e:
-        logger.error(e)
+        logger.exception('auth0_callback_request')
 
     result = {
         "access_token": token["access_token"],
@@ -81,16 +116,24 @@ async def auth0_callback_request(request: Request, users: UsersRepository = Depe
     return result
 
 
-def get_twitter_credentials(auth0_management_api_token, user_id) -> Dict[str, Any]:
-    users = Users(auth0_domain, auth0_management_api_token)
+async def get_twitter_credentials(user_id) -> Dict[
+    str, Any]:
+    management_token = get_auth0_management_api_token(ttl_hash=get_ttl_hash())
+    logger.info(f'Management token {management_token}')
+    users = Users(auth0_domain, management_token)
     res = users.get(id=f'twitter|{user_id}')
-    logger.debug(pprint.pformat(res))
+    logger.debug(f'Management API result: {pprint.pformat(res)}')
     return res
 
 
-async def validate_token(token: str = Depends(oauth2_scheme),
-                         users: UsersRepository = Depends(get_users_repository)) -> AppUser:
+async def no_auth_user() -> AppUser:
+    users = get_users_repository()
+    return users.get_user("15219792")
+
+
+async def validate_token(token: str = Depends(oauth2_scheme)) -> AppUser:
     try:
+        users: UsersRepository = get_users_repository()
         user = users.get_user_by_access_token(token)
         if not user:
             raise HTTPException(status_code=401, detail='User with access token not found')

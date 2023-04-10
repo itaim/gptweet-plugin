@@ -1,5 +1,7 @@
+import json
 import os
 import pprint
+from urllib.parse import urlencode
 
 import tweepy
 from dotenv import load_dotenv
@@ -8,7 +10,7 @@ import pprint
 
 import tweepy
 from dotenv import load_dotenv
-
+import http.client
 load_dotenv()
 from loguru import logger
 from requests_oauthlib import OAuth1Session
@@ -80,3 +82,34 @@ def rest_calls():
 # rest_calls()
 # data = {"text": "This is a new tweet from ChatGPT Twitter Plugin!"}
 # print(json.dumps(data))
+# d = {
+#     'grant_type': 'client_credentials',
+#     'client_id': '1sgsgsd',
+#     'client_secret': '1sgsgdsdsfd',
+#     'audience': 'https://www.example.com/api/v2/'
+# }
+#
+# print(urlencode(d))
+auth0_management_client_id = os.environ.get("AUTH0_MANAGEMENT_CLIENT_ID")
+auth0_management_client_secret = os.environ.get("AUTH0_MANAGEMENT_CLIENT_SECRET")
+auth0_management_domain = os.environ['AUTH0_MANAGEMENT_DOMAIN']
+def get_auth0_management_api_token() -> str:
+    conn = http.client.HTTPSConnection(auth0_management_domain)
+    payload = urlencode({
+        'grant_type': 'client_credentials',
+        'client_id': auth0_management_client_id,
+        'client_secret': auth0_management_client_secret,
+        'audience': f'https://{auth0_management_domain}/api/v2/'
+    })
+    # grant_type=client_credentials&client_id=xxx&client_secret=xxx&audience=https://dev-tuuwr1anluaql1ho.us.auth0.com/api/v2/
+    headers = {'content-type': "application/x-www-form-urlencoded"}
+    conn.request("POST", "/oauth/token", payload, headers)
+
+    res = conn.getresponse()
+    data = res.read()
+    response_data = json.loads(data.decode("utf-8"))
+    logger.debug(f'auth0_management_api_token {data}')
+    return response_data["access_token"]
+
+# token = get_auth0_management_api_token()
+# print(token)

@@ -5,14 +5,7 @@
   "description_for_model": "A plugin that enables users to interact with Twitter functionalities and perform Google searches through ChatGPT. Features include creating tweets, following users, getting the latest tweets from the feed, searching for tweets, and performing Google searches.",
   "description_for_human": "Social Media Assistant: Tweet, follow users, get updates, search Twitter, and use Google via ChatGPT.",
   "auth": {
-    "type": "oauth",
-    "client_url": "https://social.rolebotics.com/auth0/login",
-    "authorization_url": "https://auth.rolebotics.com/authorize",
-    "scope": "plugin:user",
-    "authorization_content_type": "application/x-www-form-urlencoded",
-    "verification_tokens": {
-      "openai":"33aa1ad86234427a92475325730f8782"
-    }
+    "type": "none"
   },
   "api": {
     "type": "openapi",

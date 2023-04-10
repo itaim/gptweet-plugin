@@ -2,9 +2,9 @@ import datetime
 import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from functools import lru_cache
 from typing import Optional, Dict, Any
 
-import pinecone
 from loguru import logger
 from pydantic import BaseModel
 
@@ -252,5 +252,6 @@ def rfc_date(expires_in: int) -> datetime:
     return datetime.utcnow() + timedelta(seconds=expires_in)
 
 
-async def get_users_repository() -> UsersRepository:
+@lru_cache()
+def get_users_repository() -> UsersRepository:
     return UsersRepository(namespace=os.environ.get('ENVIRONMENT', 'production'))
