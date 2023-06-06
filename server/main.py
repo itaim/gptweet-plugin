@@ -65,7 +65,6 @@ def validate_server_token(credentials: HTTPAuthorizationCredentials = Depends(be
 
 app = FastAPI()
 app.mount("/.well-known", StaticFiles(directory=find_relative_path(".well-known")), name="static")
-# app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
 secret_key = b64encode(os.urandom(16)).decode('utf-8')
 
 app.add_middleware(
@@ -108,26 +107,6 @@ app.add_middleware(SessionMiddleware, secret_key=secret_key)
 
 app.mount("/.well-known", StaticFiles(directory=".well-known"), name="static")
 
-
-# Create a sub-application, in order to access just the query endpoint in an OpenAPI schema, found at http://0.0.0.0:8000/sub/openapi.json when the app is running locally
-# sub_app = FastAPI(
-#     title="SocialMediaAssistant",
-#     description="Social Media Assistant: Tweet, follow users, get updates, search Twitter, and use Google via ChatGPT.",
-#     version="1.0.0",
-#     servers=[{"url": "https://social.rolebotics.com"}]
-# )
-
-# sub_app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=origins,
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-# sub_app.add_middleware(SessionMiddleware, secret_key=secret_key)
-#
-
-# app.mount("/sub", sub_app)
 
 @app.get("/auth0/callback")
 async def auth0_callback(request: Request):
@@ -196,18 +175,6 @@ async def tweeter_api(
     return JSONResponse(content=content)
 
 
-# dependencies=[Depends(validate_token)]
-
-# @sub_app.post(
-#     "/twitter/api"
-# )
-# async def tweeter_api(
-#         request: TwitterAPIRequest = Body(...),
-#         user=Depends(validate_token)
-# ):
-#     return await tweeter_api_request(request, user)
-
-
 @app.post(
     "/google/search",
     response_model=SearchResponse
@@ -232,15 +199,6 @@ async def read_source(
     return await read_source_api(request)
 
 
-# @sub_app.post(
-#     "/google/api",
-#     response_model=SearchResponse
-# )
-# async def google_api(
-#         request: SearchRequest = Body(...),
-#         user=Depends(validate_token)
-# ):
-#     return await google_search(request)
 
 @app.get("/privacy", response_class=HTMLResponse)
 @app.get("/legal-info", response_class=HTMLResponse)
@@ -264,25 +222,6 @@ async def index():
     return HTMLResponse(content=html_content, status_code=200)
 
 
-# @app.get("/ai-plugin.json", response_class=HTMLResponse)
-# # @sub_app.get("/home", response_class=HTMLResponse)
-# async def plugin_json():
-#     logger.info(f'ai-plugin {os.getcwd()}')
-#     with open(".well-known/ai-plugin.json", "r") as file:
-#         content = json.load(file)
-#
-#     return JSONResponse(content=content, status_code=200)
-#
-# @app.get("/openapi.yaml", response_class=HTMLResponse)
-# # @sub_app.get("/home", response_class=HTMLResponse)
-# async def openapi_yaml():
-#     logger.info(f'openapi yaml {os.getcwd()}')
-#     import yaml
-#
-#     with open(".well-known/openapi.yaml", "r") as f:
-#         content = yaml.safe_load(f)
-#
-#     return JSONResponse(content=content, status_code=200)
 @app.on_event("startup")
 async def startup():
     logger.info(f'Startup')
