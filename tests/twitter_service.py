@@ -1,17 +1,25 @@
+from dotenv import load_dotenv
+
+load_dotenv()
+import asyncio
+import time
+from server.services.browse import scrape_text
+
+from server.models.base import SearchRequest, SourceReadRequest
+from server.routers.google_utils import duckduckgo_search
+
 import json
-import os
-import pprint
 from urllib.parse import urlencode
 
-import tweepy
-from dotenv import load_dotenv
 import os
 import pprint
 
 import tweepy
-from dotenv import load_dotenv
+
 import http.client
-load_dotenv()
+
+from server.services.search import google_official_search
+
 from loguru import logger
 from requests_oauthlib import OAuth1Session
 
@@ -75,6 +83,8 @@ def rest_calls():
     # response = oauth.get("https://api.twitter.com/2/users/750748700?user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,public_metrics,url,username,verified,withheld")
     pprint.pp(response)
     pprint.pp(response.json())
+
+
 #     1472418552196079616
 
 # method: "GET"
@@ -93,6 +103,8 @@ def rest_calls():
 auth0_management_client_id = os.environ.get("AUTH0_MANAGEMENT_CLIENT_ID")
 auth0_management_client_secret = os.environ.get("AUTH0_MANAGEMENT_CLIENT_SECRET")
 auth0_management_domain = os.environ['AUTH0_MANAGEMENT_DOMAIN']
+
+
 def get_auth0_management_api_token() -> str:
     conn = http.client.HTTPSConnection(auth0_management_domain)
     payload = urlencode({
@@ -111,5 +123,48 @@ def get_auth0_management_api_token() -> str:
     logger.debug(f'auth0_management_api_token {data}')
     return response_data["access_token"]
 
+
 # token = get_auth0_management_api_token()
 # print(token)
+
+def twitter_test():
+    oauth = OAuth1Session(
+        client_key=consumer_api_key,
+        client_secret=consumer_secret,
+        # resource_owner_key=user.twitter_token,
+        resource_owner_key='15219792-RGg8c8uMZLI3WMEACAT0tkp5FTThNByuwgm04I2VF',
+        # resource_owner_secret=user.twitter_token_secret
+        resource_owner_secret='KZualFBMzR5T2LlBhjL8AWrZBzXakL3aspaYBGOaThr71'
+    )
+    response = oauth.get(
+        "https://api.twitter.com/2/users/750748700?user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,public_metrics,url,username,verified,withheld")
+    json_str = response.json()
+    print(type(json_str))
+    print(json_str)
+
+
+# twitter_test()
+
+def debug_googel_search():
+    res = google_official_search('Upcoming sci fi movies 2023')
+    pprint.pp(res)
+
+
+def ddg_check(q='Israel Judicial Overhaul Netanyahu'):
+    start = time.time()
+    request = SearchRequest(query=q, sources=3)
+    res = asyncio.run(duckduckgo_search(request))
+    print(f'Search and scrape took: {time.time() - start} seconds')
+    pprint.pp(res)
+
+
+def read_source():
+    start = time.time()
+    request = SourceReadRequest(
+        link='https://stackoverflow.com/questions/54427248/wrapping-asyncio-gather-in-a-timeout')
+    res = asyncio.run(scrape_text(request))
+    print(f'Read source took: {time.time() - start} seconds')
+    pprint.pp(res)
+
+# read_source()
+# ddg_check('China''s espionage balloons')

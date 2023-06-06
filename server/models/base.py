@@ -15,21 +15,29 @@ class HttpMethod(Enum):
 class TwitterAPIRequest(BaseModel):
     method: HttpMethod
     url: str
-    body: Optional[str] = None
+    body: str | None = None
 
 
 class SearchRequest(BaseModel):
     query: str
     sources: int
-    summarize: bool = True
-    source_tokens: int = 600
+    source_max_words: int = 1000
 
 
-class SearchResult(BaseModel):
-    query: str
-    answer: str
-    source: str
+class Source(BaseModel):
+    link: str
+    text: Optional[str] = None
+
+
+class SearchResult(Source):
+    title: str
+    snippet: str
 
 
 class SearchResponse(BaseModel):
     __root__: List[SearchResult]
+
+
+class SourceReadRequest(BaseModel):
+    link: str
+    max_words: int = 1000

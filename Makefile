@@ -2,7 +2,7 @@
 # make heroku-login
 # make heroku-push
 
-HEROKU_APP = rolebotics-social
+HEROKU_APP = gptweet-plugin
 
 heroku-push:
 	docker buildx build --platform linux/amd64 -t ${HEROKU_APP} .

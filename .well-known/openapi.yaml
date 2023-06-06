@@ -1,10 +1,10 @@
 openapi: 3.0.2
 info:
-  title: SocialMediaAssistant Plugin API
+  title: GPTweet Plugin API
   description: A plugin that enables users to interact with Twitter functionalities and perform Google searches through ChatGPT. Features include creating tweets, following users, getting the latest tweets from the feed, searching for tweets, and performing Google searches.
   version: 1.0.0
 servers:
-  - url: https://social.rolebotics.com
+  - url: https://gptweet.rolebotics.com
 paths:
   /twitter/api:
     post:
@@ -36,7 +36,7 @@ paths:
                   method: "GET"
                   url: "https://api.twitter.com/2/tweets/:tweet_id?tweet.fields=author_id,created_at,public_metrics,text"
               searchTweets:
-                summary: Search for tweets containing a specific keyword
+                summary: Search for tweets
                 value:
                   method: "GET"
                   url: "https://api.twitter.com/2/tweets/search/recent?query=example&tweet.fields=author_id,created_at,public_metrics,text"
@@ -70,10 +70,18 @@ paths:
               schema:
                 type: object
                 description: The JSON object representing the Twitter API response
-  /google/api:
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - OAuth2: [openid, profile]
+  /google/search:
     post:
       summary: Perform Google search
-      description: This endpoint allows ChatGPT to perform google searches and get sources with summaries or the original texts
+      description: This endpoint allows ChatGPT to perform google searches and get sources with text, use this endpoint for find and search actions unless the user intent is to perform a twitter or another search action
       operationId: google_search
       requestBody:
         content:
@@ -86,15 +94,13 @@ paths:
                 value:
                   query: "how to use twitter api v2 to follow a user"
                   sources: 1
-                  summarize: false
-                  source_tokens: 2000
-              searchAndSummarize:
-                summary: Search and summarize a query
+                  source_max_words: 1000
+              general:
+                summary: results from multiple sources
                 value:
-                  query: "anticipated sci fi movies 2023"
-                  sources: 3
-                  summarize: true
-                  source_tokens: 500
+                  query: "The war in Ukraine in depth analysis"
+                  sources: 5
+                  source_max_words: 400
       responses:
         '200':
           description: Search response
@@ -102,7 +108,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SearchResponse"
-
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - OAuth2: [openid, profile]
+  /source/read:
+    post:
+      summary: Fetch url text
+      description: This endpoint allows ChatGPT to read text from a url
+      operationId: source_read
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SourceReadRequest"
+      responses:
+        '200':
+          description: Source Read Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - OAuth2: [openid, profile]
 components:
   schemas:
     TwitterAPIRequest:
@@ -133,33 +171,85 @@ components:
         sources:
           type: integer
           description: how many sources to retrieve
-        summarize:
-          type: boolean
-          description: whether to summarize the source or get the original text. summaries are provided by ChatGPT-3.5
-          default: true
-        source_tokens:
+        source_max_words:
           type: integer
-          description: Summary or original text tokens to be retieved for each source
+          description: Maximum number of words to return from each source
           default: 600
     SearchResult:
       title: SearchResult
       type: object
       properties:
-        query:
-          title: The Query
-          type: string
-        answer:
-          type: string
-          description: 'summary based on a source and query or the source original text'
-        source:
+        link:
           type: string
           description: 'source url'
+        title:
+          type: string
+          description: 'page title'
+        snippet:
+          type: string
+          description: 'search engine snippet'
+        text:
+          type: string
+          description: 'source text'
     SearchResponse:
       title: SearchResponse
       type: object
-      items:
-        $ref: "#/components/schemas/SearchResult"
-
+      properties:
+        items:
+          $ref: "#/components/schemas/SearchResult"
+    SourceReadRequest:
+      title: Read Source Request
+      type: object
+      required:
+        link
+      properties:
+        link:
+          description: 'source url'
+          type: string
+        max_words:
+          description: 'max words ro return'
+          type: integer
+          default: 1000
+    Source:
+      title: Read Source Response
+      type: object
+      properties:
+        link:
+          description: 'source url'
+          type: string
+        text:
+          description: 'source text'
+          type: string
+    HTTPValidationError:
+      title: HTTPValidationError
+      type: object
+      properties:
+        detail:
+          title: Detail
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationError"
+    ValidationError:
+      title: ValidationError
+      required:
+        - loc
+        - msg
+        - type
+      type: object
+      properties:
+        loc:
+          title: Location
+          type: array
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+        msg:
+          title: Message
+          type: string
+        type:
+          title: Error Type
+          type: string
   securitySchemes:
     OAuth2:
       type: oauth2
@@ -169,4 +259,4 @@ components:
           tokenUrl: 'https://auth.rolebotics.com/oauth/token'
           scopes:
             openid: 'OpenID Connect authentication'
-            profile: 'User profile information'
+            profile: 'User profile information

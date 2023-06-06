@@ -119,6 +119,10 @@ async def _async_chat_completion(request: ChatRequest) -> ChatResponse:
     return ChatResponse(request=request, reply=content)
 
 
+from functools import lru_cache
+
+
+@lru_cache
 @retry(wait=wait_exponential(multiplier=1, min=3, max=15), stop=stop_after_attempt(6))
 def get_embedding(text, model="text-embedding-ada-002"):
     text = text.replace("\n", " ")
