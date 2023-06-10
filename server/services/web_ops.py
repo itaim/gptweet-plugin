@@ -7,9 +7,6 @@ from server.models.base import SearchResponse, SearchRequest, SearchResult, Sour
 from server.services.browse import scrape_results, scrape_text
 from server.services.search import google_search
 
-consumer_api_key = os.environ.get("TWITTER_APP_KEY")
-consumer_secret = os.environ.get("TWITTER_APP_SECRET")
-
 
 async def duckduckgo_search(
         request: SearchRequest
