@@ -58,17 +58,6 @@ def google_official_search(query, num_results=8) -> List[SearchResult]:
         raise e
 
 
-# async def browse_website(url, question):
-#     summary = await get_text_summary(url, question)
-#     links = get_hyperlinks(url)
-#
-#     # Limit links to 5
-#     if len(links) > 5:
-#         links = links[:5]
-#
-#     result = f"""Website Content Summary: {summary}\n\nLinks: {links}"""
-#
-#     return result
 async def get_text_summaries(urls: List[str] | str, question: str, num_sources: int = 1, max_tokens: int = 500) -> \
         Optional[List[SearchResult]]:
     results = []
